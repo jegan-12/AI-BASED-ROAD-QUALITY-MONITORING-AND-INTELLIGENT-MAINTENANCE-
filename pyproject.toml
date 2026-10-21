@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["postgis: requires PostgreSQL with PostGIS"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+

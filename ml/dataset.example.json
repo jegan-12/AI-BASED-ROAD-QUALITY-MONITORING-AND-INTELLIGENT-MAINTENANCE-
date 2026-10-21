@@ -1,0 +1,8 @@
+{
+  "name": "replace-with-your-approved-road-dataset",
+  "provenance": "Document source URL, capture conditions, collection dates, consent and annotation process",
+  "license": "REPLACE_WITH_VERIFIED_LICENSE",
+  "classes": ["pothole", "longitudinal_crack", "transverse_crack", "alligator_cracking", "rutting", "other"],
+  "samples": []
+}
+

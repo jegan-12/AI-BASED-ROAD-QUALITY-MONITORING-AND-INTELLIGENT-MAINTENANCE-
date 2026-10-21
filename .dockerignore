@@ -1,0 +1,13 @@
+.git
+.env
+.venv
+**/node_modules
+**/dist
+**/__pycache__
+data
+models/*.pt
+models/*.onnx
+ml/runs
+test-results
+playwright-report
+

@@ -1,0 +1,5 @@
+[
+  {"offset_seconds": 0, "latitude": 12.98, "longitude": 77.6, "uncertainty_m": 5},
+  {"offset_seconds": 2, "latitude": 12.98002, "longitude": 77.6, "uncertainty_m": 5},
+  {"offset_seconds": 4, "latitude": 12.98004, "longitude": 77.6, "uncertainty_m": 5}
+]

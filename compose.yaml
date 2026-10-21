@@ -1,0 +1,96 @@
+name: roadscope
+x-service: &service
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://roadscope:${POSTGRES_PASSWORD:?Run scripts/init_env.py first}@db:5432/roadscope
+  JWT_SECRET: ${JWT_SECRET:?Run scripts/init_env.py first}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Run scripts/init_env.py first}
+  MEDIA_DIR: /app/data/media
+  INFERENCE_URL: http://inference:8001
+  DEMO_MODE: ${DEMO_MODE:-true}
+  INFERENCE_MODE: ${INFERENCE_MODE:-demo}
+  MODEL_CARD: /models/model-card.json
+  CALIBRATION_PATH: ${CALIBRATION_PATH:-}
+  CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: roadscope
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init_env.py first}
+      POSTGRES_DB: roadscope
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roadscope -d roadscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    <<: *service
+    restart: "no"
+    build: {context: ., dockerfile: backend/Dockerfile}
+    environment: *app-env
+    command: ["alembic", "upgrade", "head"]
+    networks: [internal]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    <<: *service
+    build: {context: ., dockerfile: backend/Dockerfile}
+    environment: *app-env
+    volumes: ["media_data:/app/data/media"]
+    networks: [edge, internal]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  worker:
+    <<: *service
+    build: {context: ., dockerfile: backend/Dockerfile}
+    environment: *app-env
+    command: ["python", "-m", "backend.app.worker"]
+    volumes: ["media_data:/app/data/media", "./models:/models:ro"]
+    networks: [internal]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      inference: {condition: service_healthy}
+  inference:
+    <<: *service
+    build:
+      context: .
+      dockerfile: inference/Dockerfile
+      args: {INSTALL_YOLO: "${INSTALL_YOLO:-false}"}
+    environment: *app-env
+    volumes: ["./models:/models:ro"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 4g
+  web:
+    <<: *service
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [edge]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  postgres_data:
+  media_data:
+networks:
+  edge:
+  internal:
+    internal: true
+
